@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>42</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="intro" aria-hidden="true">
+    <div id="intro-lines"></div>
+    <p id="intro-skip">tap to skip</p>
+  </div>
+
+  <div id="hint" aria-live="polite">42 squares. 42 memories. Tap freely.</div>
+
+  <main id="app">
+    <div id="grid" role="list" aria-label="Memory grid"></div>
+  </main>
+
+  <div id="finale-message" aria-live="polite">
+    <p id="finale-text">And so you see, the Answer was here all along.<br/>Happy birthday, Mukta. ♥</p>
+  </div>
+
+  <!-- Easter egg elements -->
+  <div id="towel-toast" aria-live="polite"></div>
+  <div id="easter-target" aria-hidden="true"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
