@@ -147,14 +147,6 @@ function wireTiles(
   });
 }
 
-function showHint(): void {
-  const hint = document.getElementById('hint');
-  if (!hint) return;
-  hint.classList.add('visible');
-  const hide = () => hint.classList.remove('visible');
-  hint.addEventListener('click', hide, { once: true });
-  setTimeout(hide, 3000);
-}
 
 function wireEasterEgg(): void {
   // Keyboard: type "towel"
@@ -315,15 +307,15 @@ function initMusic(): void {
 }
 
 async function main(): Promise<void> {
-  // Clean up any stale reset param in the URL
-  if (location.search) history.replaceState(null, '', '/');
-
-  // ?reset → clear and reload fresh
+  // ?reset → clear and reload fresh (check BEFORE stripping the URL)
   if (new URLSearchParams(location.search).has('reset')) {
     localStorage.removeItem(STORAGE_KEY);
     location.replace('/');
     return;
   }
+
+  // Clean up any other stale query params
+  if (location.search) history.replaceState(null, '', '/');
 
   document.addEventListener('keydown', (e) => {
     // Cmd+R → prevent browser reload, clear state, navigate fresh
@@ -367,9 +359,6 @@ async function main(): Promise<void> {
   wireLongPress();
   initMusic();
 
-  if (!anyRevealed) {
-    setTimeout(showHint, 600);
-  }
 
   // Expose for the Cmd+Shift+F shortcut — skips straight to 42 + video
   skipToFinale = () => {
