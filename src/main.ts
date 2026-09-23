@@ -148,6 +148,36 @@ function wireTiles(
 }
 
 
+function wireShakeToFinale(): void {
+  const THRESHOLD = 25; // m/s² — needs a real shake, not pocket movement
+  const COOLDOWN = 3000;
+  let lastShake = 0;
+  let lastX = 0, lastY = 0, lastZ = 0, firstReading = true;
+
+  const onMotion = (e: DeviceMotionEvent) => {
+    const acc = e.accelerationIncludingGravity;
+    if (!acc || acc.x == null) return;
+    const x = acc.x ?? 0, y = acc.y ?? 0, z = acc.z ?? 0;
+    if (firstReading) { lastX = x; lastY = y; lastZ = z; firstReading = false; return; }
+    const delta = Math.abs(x - lastX) + Math.abs(y - lastY) + Math.abs(z - lastZ);
+    lastX = x; lastY = y; lastZ = z;
+    if (delta > THRESHOLD && Date.now() - lastShake > COOLDOWN) {
+      lastShake = Date.now();
+      skipToFinale();
+    }
+  };
+
+  // iOS 13+ requires permission
+  if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+    // Request on first user gesture (tile tap already happened)
+    (DeviceMotionEvent as any).requestPermission()
+      .then((r: string) => { if (r === 'granted') window.addEventListener('devicemotion', onMotion); })
+      .catch(() => {});
+  } else {
+    window.addEventListener('devicemotion', onMotion);
+  }
+}
+
 function wireEasterEgg(): void {
   // Keyboard: type "towel"
   let keyBuffer = '';
@@ -156,21 +186,6 @@ function wireEasterEgg(): void {
     if (keyBuffer === 'towel') triggerEasterEgg();
   });
 
-  // Mobile: 3 taps within 2s on hidden target
-  const target = document.getElementById('easter-target');
-  if (!target) return;
-  let taps = 0;
-  let tapTimer: ReturnType<typeof setTimeout>;
-  target.addEventListener('click', () => {
-    taps++;
-    clearTimeout(tapTimer);
-    if (taps >= 3) {
-      taps = 0;
-      triggerEasterEgg();
-    } else {
-      tapTimer = setTimeout(() => { taps = 0; }, 2000);
-    }
-  });
 }
 
 function showToast(text: string, duration = 4500): void {
@@ -192,26 +207,34 @@ function triggerEasterEgg(): void {
   showToast("Don't Panic. And always know where your towel is. — Deep Thought");
 }
 
-// Easter egg #2: triple-tap the apostrophe tile once it's revealed
-function wireApostropheEgg(tileEls: HTMLElement[], revealed: boolean[]): void {
+// Easter egg #2: long-press the apostrophe tile (revealed or not)
+function wireApostropheEgg(tileEls: HTMLElement[], _revealed: boolean[]): void {
   const APOSTROPHE_TILE = 22; // the ' in DON'T
   const tile = tileEls[APOSTROPHE_TILE];
   if (!tile) return;
 
-  let taps = 0;
-  let timer: ReturnType<typeof setTimeout>;
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+  let suppressed = false;
 
-  tile.addEventListener('click', () => {
-    if (!revealed[APOSTROPHE_TILE]) return;
-    taps++;
-    clearTimeout(timer);
-    if (taps >= 3) {
-      taps = 0;
+  tile.addEventListener('pointerdown', () => {
+    suppressed = false;
+    pressTimer = setTimeout(() => {
+      suppressed = true;
       showToast('This apostrophe was inserted by the Magratheans for a nominal fee.');
-    } else {
-      timer = setTimeout(() => { taps = 0; }, 2000);
-    }
+    }, 600);
   });
+
+  const cancel = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  };
+  tile.addEventListener('pointerup', cancel);
+  tile.addEventListener('pointercancel', cancel);
+  tile.addEventListener('pointermove', cancel);
+
+  // Suppress the normal tile click if long-press fired
+  tile.addEventListener('click', (e) => {
+    if (suppressed) { e.stopImmediatePropagation(); suppressed = false; }
+  }, true); // capture phase — runs before wireTiles handler
 }
 
 // Easter egg #4: long-press on background (not on tiles or modal)
@@ -318,8 +341,8 @@ async function main(): Promise<void> {
   if (location.search) history.replaceState(null, '', '/');
 
   document.addEventListener('keydown', (e) => {
-    // Cmd+R → prevent browser reload, clear state, navigate fresh
-    if ((e.metaKey || e.ctrlKey) && e.key === 'r' && !e.shiftKey && !e.altKey) {
+    // Cmd+Shift+0 → reset grid
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '0') {
       e.preventDefault();
       localStorage.removeItem(STORAGE_KEY);
       location.href = '/';
@@ -352,12 +375,28 @@ async function main(): Promise<void> {
     if (intro) intro.style.display = 'none';
   }
 
+  const allRevealed = revealed.every(Boolean);
+
   const tileEls = buildGrid(grid, revealed, captions);
   wireTiles(tileEls, captions, revealed);
   wireEasterEgg();
   wireApostropheEgg(tileEls, revealed);
   wireLongPress();
   initMusic();
+  wireShakeToFinale();
+
+  // If already complete on load, skip straight to fireworks → video → message
+  if (allRevealed) {
+    grid.classList.add('finale');
+    setTimeout(() => {
+      lightUpFortyTwo(tileEls, false, () => {
+        playBirthdayVideo(() => {
+          document.getElementById('finale-message')?.classList.add('visible');
+          fireConfetti();
+        });
+      }, showToast);
+    }, 600);
+  }
 
 
   // Expose for the Cmd+Shift+F shortcut — skips straight to 42 + video
