@@ -94,8 +94,7 @@ function buildGrid(
     tileEls.push(tile);
 
     if (revealed[i]) {
-      tile.classList.add('revealed', 'no-transition');
-      // Pre-populate the photo so returning visitors see their memories
+      tile.classList.add('revealed');
       const photo = captions[i]?.photo ?? `${String(i + 1).padStart(2, '0')}.jpg`;
       setTilePhoto(back, photo);
     }
@@ -316,18 +315,22 @@ function initMusic(): void {
 }
 
 async function main(): Promise<void> {
-  // ?reset (or Cmd+R) clears all progress and reloads
-  if (new URLSearchParams(location.search).has('reset')) {
+  // ?reset or pending-reset flag (set by Cmd+R before browser reload) → clear and start fresh
+  const needsReset =
+    new URLSearchParams(location.search).has('reset') ||
+    sessionStorage.getItem('pending-reset') === '1';
+  if (needsReset) {
+    sessionStorage.removeItem('pending-reset');
     localStorage.removeItem(STORAGE_KEY);
     location.replace('/');
     return;
   }
 
   document.addEventListener('keydown', (e) => {
-    // Cmd+R → clear state then let the browser reload happen naturally
+    // Cmd+R → flag for reset, then let browser reload naturally (sessionStorage survives the reload)
     if ((e.metaKey || e.ctrlKey) && e.key === 'r' && !e.shiftKey && !e.altKey) {
-      localStorage.removeItem(STORAGE_KEY);
-      // No preventDefault — browser reloads and picks up the empty state
+      sessionStorage.setItem('pending-reset', '1');
+      // No preventDefault — browser does its reload, we clear on the next load
     }
     // Cmd+Shift+F → skip to finale (dev shortcut)
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
@@ -375,10 +378,9 @@ async function main(): Promise<void> {
       revealed[i] = true;
       const back = tile.querySelector<HTMLElement>('.tile-back')!;
       setTilePhoto(back, captions[i]?.photo ?? `${String(i + 1).padStart(2, '0')}.jpg`);
-      tile.classList.add('no-transition', 'revealed');
+      tile.classList.add('revealed');
     });
     requestAnimationFrame(() => {
-      tileEls.forEach((t) => t.classList.remove('no-transition'));
       saveState(revealed);
       document.getElementById('grid')?.classList.add('finale');
       // Skip ripple + breathe — jump straight to the payoff

@@ -53,24 +53,23 @@ export function setTilePhoto(back: HTMLElement, photo: string): void {
   if (!img) {
     img = document.createElement('img');
     img.alt = '';
-    img.style.cssText = 'object-fit:cover;display:block;position:absolute;top:0;left:0;';
+    img.style.cssText = 'position:absolute;top:0;left:0;object-fit:cover;display:block;';
     back.appendChild(img);
   }
   img.src = `/photos/${photo}`;
 
-  // Stamp explicit pixel dimensions so object-fit:cover is unambiguous in any browser
+  const el = img;
   const stamp = () => {
-    const w = tile.offsetWidth;
-    const h = tile.offsetHeight;
-    if (w > 0 && h > 0 && img) {
-      img.style.width  = w + 'px';
-      img.style.height = h + 'px';
+    const { width } = tile.getBoundingClientRect();
+    if (width > 0) {
+      // Tiles are square — use width for both axes
+      el.style.width  = width + 'px';
+      el.style.height = width + 'px';
+    } else {
+      requestAnimationFrame(stamp);
     }
   };
-
-  stamp();
-  // Re-stamp after image loads in case it triggered a reflow
-  img.addEventListener('load', stamp, { once: true });
+  requestAnimationFrame(stamp);
 }
 
 interface Caption {
@@ -132,17 +131,15 @@ export function handleTileClick(
 
   const back = tile.querySelector<HTMLElement>('.tile-back')!;
 
-  // Set back face to this tile's photo — stays here permanently after reveal
+  // Set back face to this tile's photo — stays permanently after reveal
   setTilePhoto(back, caption.photo);
 
   // Preload
   new Image().src = `/photos/${caption.photo}`;
 
-  // Step 1: flip the tile (CSS 3D rotateY, ~450ms)
   playFlipSound();
-  tile.classList.add('revealed');
 
-  // Step 2: after the flip's first half, expand the modal from the tile's position
+  // Expand the modal from the tile's position immediately
   setTimeout(() => {
     const rect = tile.getBoundingClientRect();
     const modal = buildModal(caption);
@@ -175,13 +172,16 @@ export function handleTileClick(
       modal.style.transform = tileTransform(closeRect);
       modal.style.borderRadius = '8px';
 
-      modal.addEventListener('transitionend', (e) => {
+      const onClose = (e: TransitionEvent) => {
         if (e.propertyName !== 'transform') return;
+        modal.removeEventListener('transitionend', onClose);
         modal.remove();
         delete tile.dataset['opening'];
+        tile.classList.add('revealed');
         revealed[index] = true;
         onReveal(index);
-      }, { once: true });
+      };
+      modal.addEventListener('transitionend', onClose);
     };
 
     const onEsc = (e: KeyboardEvent) => {
@@ -236,11 +236,13 @@ export function reopenTile(
       'transform 300ms cubic-bezier(0.4, 0, 0.2, 1), border-radius 300ms ease';
     modal.style.transform = tileTransform(closeRect);
     modal.style.borderRadius = '8px';
-    modal.addEventListener('transitionend', (e) => {
+    const onReopenClose = (e: TransitionEvent) => {
       if (e.propertyName !== 'transform') return;
+      modal.removeEventListener('transitionend', onReopenClose);
       modal.remove();
       delete tile.dataset['opening'];
-    }, { once: true });
+    };
+    modal.addEventListener('transitionend', onReopenClose);
   };
 
   const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };

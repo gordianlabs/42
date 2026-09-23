@@ -101,29 +101,23 @@ html, body {
   grid-template-columns: repeat(6, 1fr);
   gap: var(--grid-gap);
   padding: var(--grid-gap);
-  perspective: 1200px;
 }
 
 /* ---- Tile ---- */
 .tile {
   position: relative;
   aspect-ratio: 1 / 1;
-  transform-style: preserve-3d;
-  transform: rotateY(0deg);
-  transition: transform var(--flip-duration) var(--flip-ease);
   cursor: pointer;
   border-radius: var(--tile-radius);
+  overflow: hidden;
 }
 
 .tile:active:not(.revealed) {
-  transform: scale(0.92);
+  opacity: 0.8;
 }
 
-.tile.revealed {
-  transform: rotateY(180deg);
-}
-
-.tile.no-transition {
+.tile.no-transition .tile-front,
+.tile.no-transition .tile-back {
   transition: none !important;
 }
 
@@ -135,31 +129,38 @@ html, body {
 .tile-back {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   border-radius: var(--tile-radius);
+  transition: opacity var(--flip-duration) var(--flip-ease);
 }
 
 .tile-front {
-  /* background-color set per-tile in JS */
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  opacity: 1;
+  z-index: 1;
+}
+
+.tile.revealed .tile-front {
+  opacity: 0;
 }
 
 .tile-back {
-  transform: rotateY(180deg);
+  opacity: 0;
+  z-index: 2;
+  display: flex;
   overflow: hidden;
 }
 
+.tile.revealed .tile-back {
+  opacity: 1;
+}
+
 .tile-back img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   object-fit: cover;
   display: block;
 }
