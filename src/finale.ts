@@ -136,7 +136,13 @@ export function lightUpFortyTwo(
     duration: 0.25,
     stagger: 0.05,
     ease: 'power1.out',
-    onComplete,
+    onComplete: () => {
+      // Linger on the "42" — three confetti bursts, then hand off
+      fireworks();
+      setTimeout(() => fireworks(), 900);
+      setTimeout(() => fireworks(), 1800);
+      setTimeout(() => onComplete?.(), 3200);
+    },
   });
 }
 
@@ -189,14 +195,16 @@ export function playBirthdayVideo(onDone: () => void): void {
   video.addEventListener('error', () => { overlay.remove(); onDone(); }, { once: true });
 }
 
+function fireworks(): void {
+  if (typeof confetti === 'undefined') return;
+  const colors = ['#F9DF6D', '#A0C35A', '#B0C4EF', '#BA81C5', '#ffffff'];
+  // Two simultaneous bursts from opposite sides
+  confetti({ particleCount: 60, angle: 60,  spread: 70, origin: { x: 0, y: 0.6 }, colors, ticks: 200 });
+  confetti({ particleCount: 60, angle: 120, spread: 70, origin: { x: 1, y: 0.6 }, colors, ticks: 200 });
+}
+
 export function fireConfetti(): void {
   if (typeof confetti === 'undefined') return;
   const colors = ['#F9DF6D', '#c9a84c', '#f5f5f5', '#A0C35A'];
-  confetti({
-    particleCount: 30,
-    spread: 60,
-    origin: { y: 0.5 },
-    colors,
-    ticks: 150,
-  });
+  confetti({ particleCount: 30, spread: 60, origin: { y: 0.5 }, colors, ticks: 150 });
 }

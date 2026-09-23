@@ -285,6 +285,20 @@ html, body {
   pointer-events: auto;
 }
 
+#replay-btn {
+  margin-top: 2rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.6rem 1.4rem;
+  border-radius: 24px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  -webkit-tap-highlight-color: transparent;
+}
+
 #finale-text {
   font-size: clamp(1.1rem, 4vw, 1.5rem);
   line-height: 1.8;

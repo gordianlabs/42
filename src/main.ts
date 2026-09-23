@@ -315,22 +315,22 @@ function initMusic(): void {
 }
 
 async function main(): Promise<void> {
-  // ?reset or pending-reset flag (set by Cmd+R before browser reload) → clear and start fresh
-  const needsReset =
-    new URLSearchParams(location.search).has('reset') ||
-    sessionStorage.getItem('pending-reset') === '1';
-  if (needsReset) {
-    sessionStorage.removeItem('pending-reset');
+  // Clean up any stale reset param in the URL
+  if (location.search) history.replaceState(null, '', '/');
+
+  // ?reset → clear and reload fresh
+  if (new URLSearchParams(location.search).has('reset')) {
     localStorage.removeItem(STORAGE_KEY);
     location.replace('/');
     return;
   }
 
   document.addEventListener('keydown', (e) => {
-    // Cmd+R → flag for reset, then let browser reload naturally (sessionStorage survives the reload)
+    // Cmd+R → prevent browser reload, clear state, navigate fresh
     if ((e.metaKey || e.ctrlKey) && e.key === 'r' && !e.shiftKey && !e.altKey) {
-      sessionStorage.setItem('pending-reset', '1');
-      // No preventDefault — browser does its reload, we clear on the next load
+      e.preventDefault();
+      localStorage.removeItem(STORAGE_KEY);
+      location.href = '/';
     }
     // Cmd+Shift+F → skip to finale (dev shortcut)
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
