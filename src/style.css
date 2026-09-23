@@ -6,13 +6,14 @@
 }
 
 :root {
-  --bg: #0a0a0a;
+  --bg: #111111;
   --text: #f5f5f5;
   --accent: #c9a84c;
-  --tile-border: rgba(255, 255, 255, 0.08);
   --modal-bg: rgba(10, 10, 10, 0.95);
   --flip-duration: 600ms;
   --flip-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --tile-radius: 8px;
+  --grid-gap: 6px;
 }
 
 html, body {
@@ -41,9 +42,10 @@ html, body {
 #intro-lines {
   font-family: 'Courier New', monospace;
   font-size: clamp(0.85rem, 2.5vw, 1.1rem);
-  color: var(--accent);
+  color: #33ff00;
   line-height: 2;
   min-height: 10em;
+  text-shadow: 0 0 8px #33ff0088;
 }
 
 #intro-lines span {
@@ -86,17 +88,19 @@ html, body {
 /* ---- App / Grid ---- */
 #app {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 #grid {
   width: 100%;
-  max-width: 600px;
+  max-width: 480px;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  gap: var(--grid-gap);
+  padding: var(--grid-gap);
   perspective: 1200px;
 }
 
@@ -108,7 +112,11 @@ html, body {
   transform: rotateY(0deg);
   transition: transform var(--flip-duration) var(--flip-ease);
   cursor: pointer;
-  border: 1px solid var(--tile-border);
+  border-radius: var(--tile-radius);
+}
+
+.tile:active:not(.revealed) {
+  transform: scale(0.92);
 }
 
 .tile.revealed {
@@ -127,19 +135,43 @@ html, body {
 .tile-back {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  background-size: 600% 700%;
+  border-radius: var(--tile-radius);
 }
 
 .tile-front {
-  /* background-image set per-tile in JS (DON'T PANIC canvas) */
+  /* background-color set per-tile in JS */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
 }
 
 .tile-back {
   transform: rotateY(180deg);
-  background-image: url('/family.jpg');
-  background-size: 600% 700%;
+  overflow: hidden;
+}
+
+.tile-back img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---- Tile letter (DON'T PANIC) ---- */
+.tile-letter {
+  font-size: clamp(1.1rem, 7vw, 2rem);
+  font-weight: 900;
+  color: #1a1a1a;
+  user-select: none;
+  pointer-events: none;
+  letter-spacing: -0.02em;
 }
 
 /* ---- Modal ---- */
@@ -147,62 +179,52 @@ html, body {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   background: var(--modal-bg);
   z-index: 200;
-  padding: 1rem;
-  cursor: pointer;
-  opacity: 0;
-  animation: modal-fade-in 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
-}
-
-@keyframes modal-fade-in {
-  to { opacity: 1; }
-}
-
-.modal.closing {
-  animation: modal-fade-out 0.25s ease forwards;
-}
-
-@keyframes modal-fade-out {
-  to { opacity: 0; }
+  overflow: hidden;
+  transform-origin: center center;
+  /* position + transform set by JS for expand/collapse */
 }
 
 .modal-inner {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: clamp(0.75rem, 4vw, 2rem);
   gap: 1rem;
-  max-width: 480px;
-  width: 100%;
-  cursor: default;
-  transform: scale(0.92);
-  animation: modal-scale-in 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
-}
-
-@keyframes modal-scale-in {
-  to { transform: scale(1); }
+  overflow: hidden;
+  min-height: 0;
 }
 
 .modal-photo {
   width: 100%;
-  max-height: 60dvh;
-  object-fit: cover;
+  flex: 1;
+  object-fit: contain;
+  min-height: 0;
   border-radius: 4px;
   display: block;
 }
 
 .modal-caption {
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  line-height: 1.6;
   color: var(--text);
   text-align: center;
   padding: 0 0.5rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 250ms ease 50ms;
+}
+
+.modal.expanded .modal-caption {
+  opacity: 1;
 }
 
 .modal-close {
-  position: fixed;
+  position: absolute;
   top: max(1rem, env(safe-area-inset-top));
   right: max(1rem, env(safe-area-inset-right));
   width: 44px;
@@ -210,7 +232,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
   border: none;
   border-radius: 50%;
   color: var(--text);
@@ -218,6 +240,12 @@ html, body {
   cursor: pointer;
   z-index: 201;
   -webkit-tap-highlight-color: transparent;
+  opacity: 0;
+  transition: opacity 250ms ease 50ms;
+}
+
+.modal.expanded .modal-close {
+  opacity: 1;
 }
 
 /* ---- View Transitions ---- */
@@ -225,6 +253,16 @@ html, body {
 ::view-transition-new(vt-photo) {
   animation-duration: 350ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- 42 highlight overlay (finale) ---- */
+.tile-highlight {
+  position: absolute;
+  inset: 0;
+  background: rgba(249, 223, 109, 0.9);
+  border-radius: var(--tile-radius);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---- Finale ---- */
@@ -257,6 +295,32 @@ html, body {
 
 #grid.finale .tile-back {
   /* already flipped; just let the grid shine */
+}
+
+/* ---- Music toggle ---- */
+#music-toggle {
+  position: fixed;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  right: max(1.25rem, env(safe-area-inset-right));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#music-toggle:hover {
+  opacity: 1;
 }
 
 /* ---- Easter Egg ---- */

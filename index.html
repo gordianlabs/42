@@ -17,15 +17,19 @@
     <p id="intro-skip">tap to skip</p>
   </div>
 
-  <div id="hint" aria-live="polite">42 squares. 42 memories. Tap freely.</div>
+  <div id="hint" aria-live="polite"></div>
 
   <main id="app">
     <div id="grid" role="list" aria-label="Memory grid"></div>
   </main>
 
   <div id="finale-message" aria-live="polite">
-    <p id="finale-text">And so you see, the Answer was here all along.<br/>Happy birthday, Mukta. ♥</p>
+    <p id="finale-text">And so you see, the Answer was here all along.<br/>Happy birthday, MC. ♥</p>
   </div>
+
+  <!-- Background music (drop public/music.mp3 to activate) -->
+  <audio id="bg-music" src="/music.mp3" loop preload="none"></audio>
+  <button id="music-toggle" aria-label="Mute music">🔉</button>
 
   <!-- Easter egg elements -->
   <div id="towel-toast" aria-live="polite"></div>

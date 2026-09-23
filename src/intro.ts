@@ -6,7 +6,6 @@ const LINES = [
   '&gt; Computing the Answer to Life, the Universe, and Everything...',
   '&gt; ..........................................',
   '&gt; The Answer is: <strong>42</strong>',
-  '&gt; Happy birthday, Mukta.',
 ];
 
 export function runIntro(): Promise<void> {

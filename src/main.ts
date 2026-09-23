@@ -1,6 +1,6 @@
 import { runIntro } from './intro';
-import { handleTileClick } from './tile';
-import { triggerFinale } from './finale';
+import { handleTileClick, setTilePhoto, reopenTile } from './tile';
+import { triggerFinale, lightUpFortyTwo, playBirthdayVideo, fireConfetti } from './finale';
 
 const COLS = 6;
 const ROWS = 7;
@@ -40,54 +40,33 @@ function saveState(revealed: boolean[]): void {
   }
 }
 
-function generateDontPanicDataUrl(width: number, height: number): string {
-  const dpr = window.devicePixelRatio || 1;
-  const canvas = document.createElement('canvas');
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  const ctx = canvas.getContext('2d')!;
-  ctx.scale(dpr, dpr);
+// Connections-style color palette
+const DONT_COLOR  = '#F9DF6D'; // yellow  — DON'T tiles
+const PANIC_COLOR = '#A0C35A'; // green   — PANIC tiles
+const BLANK_EVEN  = '#B0C4EF'; // blue    — blank rows (even)
+const BLANK_ODD   = '#BA81C5'; // purple  — blank rows (odd)
 
-  const grad = ctx.createRadialGradient(
-    width / 2, height / 2, 0,
-    width / 2, height / 2, Math.max(width, height) * 0.7
-  );
-  grad.addColorStop(0, '#8B0000');
-  grad.addColorStop(1, '#3D0000');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, width, height);
+// DON'T right-aligned in row 3 (tiles 19-23), PANIC left-aligned in row 4 (tiles 24-28)
+const DONT_PANIC_LETTERS: Record<number, string> = {
+  19: 'D', 20: 'O', 21: 'N', 22: "'", 23: 'T',
+  24: 'P', 25: 'A', 26: 'N', 27: 'I', 28: 'C',
+};
 
-  const fontSize = Math.min(width * 0.28, height * 0.18);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${fontSize}px 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText("DON'T", width / 2, height * 0.38);
-  ctx.fillText('PANIC', width / 2, height * 0.62);
-
-  return canvas.toDataURL('image/png');
+function getTileColor(index: number): string {
+  const row = Math.floor(index / COLS);
+  if (row === 3) return DONT_COLOR;   // whole row 3 = yellow (DON'T)
+  if (row === 4) return PANIC_COLOR;  // whole row 4 = green  (PANIC)
+  return row % 2 === 0 ? BLANK_EVEN : BLANK_ODD;
 }
 
 function buildGrid(
   grid: HTMLElement,
-  revealed: boolean[]
+  revealed: boolean[],
+  captions: Caption[]
 ): HTMLElement[] {
   const tileEls: HTMLElement[] = [];
 
-  const rect = grid.getBoundingClientRect();
-  const gridW = rect.width || grid.offsetWidth;
-  const tileW = gridW / COLS;
-  const tileH = tileW;
-  const gridH = tileH * ROWS;
-
-  const dontPanicUrl = generateDontPanicDataUrl(gridW, gridH);
-
   for (let i = 0; i < TOTAL; i++) {
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
-    const bpX = COLS > 1 ? `${(col / (COLS - 1)) * 100}%` : '0%';
-    const bpY = ROWS > 1 ? `${(row / (ROWS - 1)) * 100}%` : '0%';
-
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.dataset['index'] = String(i);
@@ -97,13 +76,18 @@ function buildGrid(
 
     const front = document.createElement('div');
     front.className = 'tile-front';
-    front.style.backgroundImage = `url('${dontPanicUrl}')`;
-    front.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
-    front.style.backgroundPosition = `${bpX} ${bpY}`;
+    front.style.backgroundColor = getTileColor(i);
+
+    const letter = DONT_PANIC_LETTERS[i];
+    if (letter) {
+      const span = document.createElement('span');
+      span.className = 'tile-letter';
+      span.textContent = letter;
+      front.appendChild(span);
+    }
 
     const back = document.createElement('div');
     back.className = 'tile-back';
-    back.style.backgroundPosition = `${bpX} ${bpY}`;
 
     tile.append(front, back);
     grid.appendChild(tile);
@@ -111,6 +95,9 @@ function buildGrid(
 
     if (revealed[i]) {
       tile.classList.add('revealed', 'no-transition');
+      // Pre-populate the photo so returning visitors see their memories
+      const photo = captions[i]?.photo ?? `${String(i + 1).padStart(2, '0')}.jpg`;
+      setTilePhoto(back, photo);
     }
   }
 
@@ -137,14 +124,18 @@ function wireTiles(
     const count = revealed.filter(Boolean).length;
     if (count === TOTAL && !finaleTriggered) {
       finaleTriggered = true;
-      setTimeout(() => triggerFinale(index, tileEls), 200);
+      setTimeout(() => triggerFinale(index, tileEls, showToast), 200);
     }
   };
 
   tileEls.forEach((tile, i) => {
     const handler = () => {
-      if (revealed[i]) return;
-      handleTileClick(i, tile, tileEls, revealed, captions, onReveal);
+      if (revealed[i]) {
+        // Re-tap on a revealed tile: expand the photo again
+        reopenTile(i, tile, captions);
+      } else {
+        handleTileClick(i, tile, tileEls, revealed, captions, onReveal);
+      }
     };
 
     tile.addEventListener('click', handler);
@@ -191,6 +182,14 @@ function wireEasterEgg(): void {
   });
 }
 
+function showToast(text: string, duration = 4500): void {
+  const toast = document.getElementById('towel-toast');
+  if (!toast) return;
+  toast.textContent = text;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), duration);
+}
+
 function triggerEasterEgg(): void {
   const towel = document.createElement('div');
   towel.className = 'towel-float';
@@ -199,15 +198,144 @@ function triggerEasterEgg(): void {
   towel.style.bottom = '10%';
   document.body.appendChild(towel);
   towel.addEventListener('animationend', () => towel.remove());
+  showToast("Don't Panic. And always know where your towel is. — Deep Thought");
+}
 
-  const toast = document.getElementById('towel-toast');
-  if (!toast) return;
-  toast.textContent = "Don't Panic. And always know where your towel is. — Deep Thought";
-  toast.classList.add('visible');
-  setTimeout(() => toast.classList.remove('visible'), 4000);
+// Easter egg #2: triple-tap the apostrophe tile once it's revealed
+function wireApostropheEgg(tileEls: HTMLElement[], revealed: boolean[]): void {
+  const APOSTROPHE_TILE = 22; // the ' in DON'T
+  const tile = tileEls[APOSTROPHE_TILE];
+  if (!tile) return;
+
+  let taps = 0;
+  let timer: ReturnType<typeof setTimeout>;
+
+  tile.addEventListener('click', () => {
+    if (!revealed[APOSTROPHE_TILE]) return;
+    taps++;
+    clearTimeout(timer);
+    if (taps >= 3) {
+      taps = 0;
+      showToast('This apostrophe was inserted by the Magratheans for a nominal fee.');
+    } else {
+      timer = setTimeout(() => { taps = 0; }, 2000);
+    }
+  });
+}
+
+// Easter egg #4: long-press on background (not on tiles or modal)
+function wireLongPress(): void {
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+  let startX = 0;
+  let startY = 0;
+
+  document.addEventListener('pointerdown', (e) => {
+    if ((e.target as HTMLElement).closest('.tile, .modal, #intro, #easter-target')) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      triggerLongPressEgg();
+    }, 600);
+  });
+
+  const cancel = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  };
+
+  document.addEventListener('pointermove', (e) => {
+    if (!pressTimer) return;
+    if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancel();
+  });
+  document.addEventListener('pointerup', cancel);
+  document.addEventListener('pointercancel', cancel);
+}
+
+function triggerLongPressEgg(): void {
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position: 'fixed', inset: '0', background: '#000', zIndex: '1000',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    opacity: '0', transition: 'opacity 0.6s ease', cursor: 'pointer',
+  });
+
+  const p = document.createElement('p');
+  Object.assign(p.style, {
+    color: '#c9a84c', fontFamily: 'Courier New, monospace',
+    fontSize: 'clamp(0.85rem, 3vw, 1.1rem)', textAlign: 'center',
+    padding: '2rem', lineHeight: '2.5', maxWidth: '500px',
+  });
+  p.innerHTML =
+    'DO NOT ADJUST YOUR MIND.<br>REALITY IS ADJUSTED TO FIT YOUR MIND.' +
+    '<br><small style="opacity:0.4;font-size:0.7em">— Sirius Cybernetics Corporation</small>';
+
+  overlay.appendChild(p);
+  document.body.appendChild(overlay);
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+    const dismiss = () => {
+      overlay.style.opacity = '0';
+      overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+    };
+    setTimeout(dismiss, 3500);
+    overlay.addEventListener('click', dismiss, { once: true });
+  });
+}
+
+// ── Background music ──────────────────────────────────────
+let audioCtx: AudioContext | null = null;
+
+export function getAudioContext(): AudioContext {
+  if (!audioCtx) audioCtx = new AudioContext();
+  return audioCtx;
+}
+
+function initMusic(): void {
+  const audio = document.getElementById('bg-music') as HTMLAudioElement | null;
+  if (!audio) return;
+
+  audio.volume = 0.28;
+
+  // Start on first user interaction (satisfies browser autoplay policy)
+  const startOnce = () => {
+    audio.play().catch(() => {});
+    document.removeEventListener('pointerdown', startOnce);
+  };
+  document.addEventListener('pointerdown', startOnce);
+
+  // Mute toggle
+  const btn = document.getElementById('music-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    audio.muted = !audio.muted;
+    btn.textContent = audio.muted ? '🔇' : '🔉';
+    btn.setAttribute('aria-label', audio.muted ? 'Unmute music' : 'Mute music');
+  });
 }
 
 async function main(): Promise<void> {
+  // ?reset (or Cmd+R) clears all progress and reloads
+  if (new URLSearchParams(location.search).has('reset')) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.replace('/');
+    return;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    // Cmd+R → clear state then let the browser reload happen naturally
+    if ((e.metaKey || e.ctrlKey) && e.key === 'r' && !e.shiftKey && !e.altKey) {
+      localStorage.removeItem(STORAGE_KEY);
+      // No preventDefault — browser reloads and picks up the empty state
+    }
+    // Cmd+Shift+F → skip to finale (dev shortcut)
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+      e.preventDefault();
+      skipToFinale();
+    }
+  });
+
   const [captionsRes] = await Promise.all([
     fetch('/captions.json'),
   ]);
@@ -229,14 +357,43 @@ async function main(): Promise<void> {
     if (intro) intro.style.display = 'none';
   }
 
-  const tileEls = buildGrid(grid, revealed);
+  const tileEls = buildGrid(grid, revealed, captions);
   wireTiles(tileEls, captions, revealed);
   wireEasterEgg();
+  wireApostropheEgg(tileEls, revealed);
+  wireLongPress();
+  initMusic();
 
   if (!anyRevealed) {
     setTimeout(showHint, 600);
   }
+
+  // Expose for the Cmd+Shift+F shortcut — skips straight to 42 + video
+  skipToFinale = () => {
+    tileEls.forEach((tile, i) => {
+      if (revealed[i]) return;
+      revealed[i] = true;
+      const back = tile.querySelector<HTMLElement>('.tile-back')!;
+      setTilePhoto(back, captions[i]?.photo ?? `${String(i + 1).padStart(2, '0')}.jpg`);
+      tile.classList.add('no-transition', 'revealed');
+    });
+    requestAnimationFrame(() => {
+      tileEls.forEach((t) => t.classList.remove('no-transition'));
+      saveState(revealed);
+      document.getElementById('grid')?.classList.add('finale');
+      // Skip ripple + breathe — jump straight to the payoff
+      lightUpFortyTwo(tileEls, false, () => {
+        playBirthdayVideo(() => {
+          document.getElementById('finale-message')?.classList.add('visible');
+          fireConfetti();
+        });
+      }, showToast);
+    });
+  };
 }
+
+// Filled in after main() runs so the keydown handler can call it
+let skipToFinale: () => void = () => {};
 
 document.addEventListener('DOMContentLoaded', () => {
   main().catch(console.warn);
