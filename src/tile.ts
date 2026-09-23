@@ -93,16 +93,12 @@ function buildModal(caption: Caption): HTMLElement {
   img.src = `/photos/${caption.photo}`;
   img.alt = caption.caption;
 
-  const cap = document.createElement('p');
-  cap.className = 'modal-caption';
-  cap.textContent = caption.caption;
-
   const closeBtn = document.createElement('button');
   closeBtn.className = 'modal-close';
   closeBtn.setAttribute('aria-label', 'Close');
   closeBtn.textContent = '×';
 
-  inner.append(img, cap);
+  inner.append(img);
   modal.append(inner, closeBtn);
   return modal;
 }

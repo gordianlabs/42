@@ -61,29 +61,6 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ---- Hint ---- */
-#hint {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.7);
-  z-index: 50;
-  font-size: 1.1rem;
-  color: var(--text);
-  text-align: center;
-  padding: 2rem;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s ease;
-}
-
-#hint.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
 
 /* ---- App / Grid ---- */
 #app {
