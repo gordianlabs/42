@@ -201,7 +201,7 @@ export function playBirthdayVideo(onDone: () => void): void {
     fontFamily: 'inherit', fontSize: '0.8rem', letterSpacing: '0.12em',
     pointerEvents: 'none',
   });
-  tapCue.textContent = 'tap to continue';
+  tapCue.textContent = '♥  tap for a message from your people  ♥';
 
   overlay.append(video, tapCue, skipBtn);
   document.body.appendChild(overlay);
