@@ -148,34 +148,19 @@ function wireTiles(
 }
 
 
-function wireShakeToFinale(): void {
-  const THRESHOLD = 25; // m/s² — needs a real shake, not pocket movement
-  const COOLDOWN = 3000;
-  let lastShake = 0;
-  let lastX = 0, lastY = 0, lastZ = 0, firstReading = true;
+function wireSkipShortcut(): void {
+  // Long-press 🔉 button for 2s → skip to finale (works on phone + laptop)
+  const btn = document.getElementById('music-toggle');
+  if (!btn) return;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const onMotion = (e: DeviceMotionEvent) => {
-    const acc = e.accelerationIncludingGravity;
-    if (!acc || acc.x == null) return;
-    const x = acc.x ?? 0, y = acc.y ?? 0, z = acc.z ?? 0;
-    if (firstReading) { lastX = x; lastY = y; lastZ = z; firstReading = false; return; }
-    const delta = Math.abs(x - lastX) + Math.abs(y - lastY) + Math.abs(z - lastZ);
-    lastX = x; lastY = y; lastZ = z;
-    if (delta > THRESHOLD && Date.now() - lastShake > COOLDOWN) {
-      lastShake = Date.now();
-      skipToFinale();
-    }
-  };
-
-  // iOS 13+ requires permission
-  if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-    // Request on first user gesture (tile tap already happened)
-    (DeviceMotionEvent as any).requestPermission()
-      .then((r: string) => { if (r === 'granted') window.addEventListener('devicemotion', onMotion); })
-      .catch(() => {});
-  } else {
-    window.addEventListener('devicemotion', onMotion);
-  }
+  btn.addEventListener('pointerdown', () => {
+    timer = setTimeout(() => { timer = null; skipToFinale(); }, 2000);
+  });
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  btn.addEventListener('pointerup', cancel);
+  btn.addEventListener('pointercancel', cancel);
+  btn.addEventListener('pointermove', cancel);
 }
 
 function wireEasterEgg(): void {
@@ -383,7 +368,7 @@ async function main(): Promise<void> {
   wireApostropheEgg(tileEls, revealed);
   wireLongPress();
   initMusic();
-  wireShakeToFinale();
+  wireSkipShortcut();
 
   // If already complete on load, skip straight to fireworks → video → message
   if (allRevealed) {
