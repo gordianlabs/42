@@ -137,6 +137,7 @@ export function lightUpFortyTwo(
     stagger: 0.05,
     ease: 'power1.out',
     onComplete: () => {
+      fadeMusicOut(); // fade music as 42 glows
       // Linger on the "42" — three confetti bursts, then hand off
       fireworks();
       setTimeout(() => fireworks(), 900);
@@ -146,7 +147,26 @@ export function lightUpFortyTwo(
   });
 }
 
+function fadeMusicOut(): void {
+  const bgMusic = document.getElementById('bg-music') as HTMLAudioElement | null;
+  if (!bgMusic || bgMusic.paused) return;
+  const step = bgMusic.volume / 20; // 20 steps over ~2s
+  const fade = setInterval(() => {
+    if (bgMusic.volume > step) {
+      bgMusic.volume = Math.max(0, bgMusic.volume - step);
+    } else {
+      bgMusic.volume = 0;
+      bgMusic.pause();
+      clearInterval(fade);
+    }
+  }, 100);
+}
+
 export function playBirthdayVideo(onDone: () => void): void {
+  // Hard-stop music
+  const bgMusic = document.getElementById('bg-music') as HTMLAudioElement | null;
+  if (bgMusic) { bgMusic.muted = true; bgMusic.pause(); }
+
   const overlay = document.createElement('div');
   Object.assign(overlay.style, {
     position: 'fixed', inset: '0', background: '#000',
@@ -158,7 +178,6 @@ export function playBirthdayVideo(onDone: () => void): void {
   const video = document.createElement('video');
   video.src = '/video/birthday.mp4';
   video.playsInline = true;
-  video.autoplay = true;
   video.controls = false;
   Object.assign(video.style, {
     width: '100%', height: '100%', objectFit: 'contain', display: 'block',
@@ -175,30 +194,48 @@ export function playBirthdayVideo(onDone: () => void): void {
     letterSpacing: '0.05em',
   });
 
-  overlay.append(video, skipBtn);
-  document.body.appendChild(overlay);
+  const tapCue = document.createElement('p');
+  Object.assign(tapCue.style, {
+    position: 'absolute', bottom: '30%', left: '0', right: '0',
+    textAlign: 'center', color: 'rgba(255,255,255,0.4)',
+    fontFamily: 'inherit', fontSize: '0.8rem', letterSpacing: '0.12em',
+    pointerEvents: 'none',
+  });
+  tapCue.textContent = '♥  tap for a message from your people  ♥';
 
-  // Pause background music so video can autoplay with sound
-  const bgMusic = document.getElementById('bg-music') as HTMLAudioElement | null;
-  if (bgMusic) bgMusic.pause();
+  overlay.append(video, tapCue, skipBtn);
+  document.body.appendChild(overlay);
 
   const finish = () => {
     overlay.style.opacity = '0';
-    // Resume background music after video
-    if (bgMusic) bgMusic.play().catch(() => {});
+    if (bgMusic) { bgMusic.muted = false; bgMusic.volume = 0.28; bgMusic.play().catch(() => {}); }
     overlay.addEventListener('transitionend', () => {
       overlay.remove();
       onDone();
     }, { once: true });
   };
 
+  // Tap anywhere on overlay → play (fallback if autoplay is blocked)
+  overlay.style.cursor = 'pointer';
+  overlay.addEventListener('click', () => {
+    overlay.style.cursor = 'default';
+    tapCue.style.display = 'none';
+    video.play().catch(() => {});
+  }, { once: true });
+
   requestAnimationFrame(() => {
     overlay.style.opacity = '1';
-    video.play().catch(() => {}); // explicit play after fade-in starts
+    // Try autoplay immediately; hide cue if it works
+    video.play().then(() => {
+      tapCue.style.display = 'none';
+      overlay.style.cursor = 'default';
+    }).catch(() => {
+      // Blocked — leave tap cue visible, wait for user tap
+    });
   });
 
   video.addEventListener('ended', finish, { once: true });
-  skipBtn.addEventListener('click', finish, { once: true });
+  skipBtn.addEventListener('click', (e) => { e.stopPropagation(); finish(); }, { once: true });
 
   // If video file is missing, skip straight to onDone
   video.addEventListener('error', () => { overlay.remove(); onDone(); }, { once: true });
