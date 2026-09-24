@@ -178,15 +178,24 @@ export function playBirthdayVideo(onDone: () => void): void {
   overlay.append(video, skipBtn);
   document.body.appendChild(overlay);
 
+  // Pause background music so video can autoplay with sound
+  const bgMusic = document.getElementById('bg-music') as HTMLAudioElement | null;
+  if (bgMusic) bgMusic.pause();
+
   const finish = () => {
     overlay.style.opacity = '0';
+    // Resume background music after video
+    if (bgMusic) bgMusic.play().catch(() => {});
     overlay.addEventListener('transitionend', () => {
       overlay.remove();
       onDone();
     }, { once: true });
   };
 
-  requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+    video.play().catch(() => {}); // explicit play after fade-in starts
+  });
 
   video.addEventListener('ended', finish, { once: true });
   skipBtn.addEventListener('click', finish, { once: true });
