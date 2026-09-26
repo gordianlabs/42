@@ -53,6 +53,7 @@ export function setTilePhoto(back: HTMLElement, photo: string): void {
   if (!img) {
     img = document.createElement('img');
     img.alt = '';
+    img.draggable = false;
     img.style.cssText = 'position:absolute;top:0;left:0;object-fit:cover;display:block;';
     back.appendChild(img);
   }
@@ -92,6 +93,7 @@ function buildModal(caption: Caption): HTMLElement {
   img.className = 'modal-photo';
   img.src = `/photos/${caption.photo}`;
   img.alt = caption.caption;
+  img.draggable = false;
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'modal-close';

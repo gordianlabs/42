@@ -179,6 +179,7 @@ export function playBirthdayVideo(onDone: () => void): void {
   video.src = '/video/birthday.mp4';
   video.playsInline = true;
   video.controls = false;
+  video.draggable = false;
   Object.assign(video.style, {
     width: '100%', height: '100%', objectFit: 'contain', display: 'block',
   });
