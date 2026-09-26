@@ -410,6 +410,13 @@ async function main(): Promise<void> {
 // Filled in after main() runs so the keydown handler can call it
 let skipToFinale: () => void = () => {};
 
+// Block right-click save on images and video
+document.addEventListener('contextmenu', (e) => {
+  if (e.target instanceof HTMLImageElement || e.target instanceof HTMLVideoElement) {
+    e.preventDefault();
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   main().catch(console.warn);
 });
